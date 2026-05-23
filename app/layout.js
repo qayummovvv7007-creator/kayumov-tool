@@ -1,6 +1,3 @@
-// app/layout.jsx
-// Butun ilova uchun asosiy layout — provayderlar shu yerda o'rnatiladi
-
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { SocketProvider } from "@/context/SocketContext";
@@ -14,8 +11,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-[var(--bg-primary)] text-white antialiased">
-        {/* Provayderlar ichki komponentlarga context beradi */}
+      <body>
         <AuthProvider>
           <ThemeProvider>
             <SocketProvider>{children}</SocketProvider>

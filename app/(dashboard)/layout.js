@@ -1,6 +1,3 @@
-// app/(dashboard)/layout.jsx
-// Virtual OS shell — taskbar, sidebar va window area
-
 "use client";
 
 import { useEffect } from "react";
@@ -21,9 +18,15 @@ export default function DashboardLayout({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div
+        style={{ backgroundColor: "var(--bg-primary)" }}
+        className="min-h-screen flex items-center justify-center"
+      >
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-2 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin" />
+          <div
+            style={{ borderColor: "var(--accent-color)" }}
+            className="w-12 h-12 border-2 border-t-transparent rounded-full animate-spin"
+          />
           <p className="text-slate-400 text-sm font-mono">
             Initializing system...
           </p>
@@ -36,7 +39,6 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
-      {/* Fon nuqtali grid effekti */}
       <div
         className="fixed inset-0 pointer-events-none opacity-[0.03]"
         style={{
@@ -45,16 +47,10 @@ export default function DashboardLayout({ children }) {
           backgroundSize: "32px 32px",
         }}
       />
-
-      {/* Asosiy kontent maydoni */}
       <main className="flex-1 overflow-auto pb-16 relative z-10">
         {children}
       </main>
-
-      {/* Virtual OS Taskbar — pastda */}
       <Taskbar />
-
-      {/* O'yin takliflari uchun global notification overlay */}
       <InviteNotification />
     </div>
   );

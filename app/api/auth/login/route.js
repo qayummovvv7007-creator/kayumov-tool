@@ -1,6 +1,3 @@
-// app/api/auth/login/route.js
-// POST /api/auth/login
-
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
@@ -8,20 +5,39 @@ import { signToken, setAuthCookie } from "@/lib/auth";
 
 export async function POST(request) {
   try {
-    const { email, password } = await request.json();
-
-    if (!email || !password) {
+    // 1. Body ni o'qish
+    let body;
+    try {
+      body = await request.json();
+    } catch {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { error: "Invalid request body" },
         { status: 400 },
       );
     }
 
-    await connectDB();
+    const { email, password } = body;
 
-    // Foydalanuvchini topish (parol ham tanlanadi — select: false bo'lgani uchun qo'lda)
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email and password required" },
+        { status: 400 },
+      );
+    }
+
+    // 2. MongoDB ga ulanish
+    try {
+      await connectDB();
+    } catch (dbErr) {
+      console.error("❌ DB Connection Error:", dbErr.message);
+      return NextResponse.json(
+        { error: `Database connection failed: ${dbErr.message}` },
+        { status: 500 },
+      );
+    }
+
+    // 3. Foydalanuvchini topish
     const user = await User.findOne({ email }).select("+password");
-
     if (!user) {
       return NextResponse.json(
         { error: "Invalid email or password" },
@@ -29,8 +45,18 @@ export async function POST(request) {
       );
     }
 
-    // Parolni solishtirish
-    const isPasswordCorrect = await user.comparePassword(password);
+    // 4. Parolni tekshirish
+    let isPasswordCorrect;
+    try {
+      isPasswordCorrect = await user.comparePassword(password);
+    } catch (bcryptErr) {
+      console.error("❌ Bcrypt Error:", bcryptErr.message);
+      return NextResponse.json(
+        { error: "Password check failed" },
+        { status: 500 },
+      );
+    }
+
     if (!isPasswordCorrect) {
       return NextResponse.json(
         { error: "Invalid email or password" },
@@ -38,12 +64,14 @@ export async function POST(request) {
       );
     }
 
+    // 5. Token yaratish
     const token = signToken({
       userId: user._id.toString(),
       username: user.username,
     });
 
-    setAuthCookie(token);
+    // 6. Cookie saqlash
+    await setAuthCookie(token);
 
     return NextResponse.json({
       message: "Login successful",
@@ -56,9 +84,10 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("❌ LOGIN FULL ERROR:", error.message);
+    console.error(error.stack);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error.message || "Internal server error" },
       { status: 500 },
     );
   }

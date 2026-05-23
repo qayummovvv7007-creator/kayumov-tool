@@ -1,24 +1,242 @@
-// components/os/Taskbar.jsx
-// Windows taskbar'iga o'xshash — pastda joylashgan navigatsiya
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useSocket } from "@/context/SocketContext";
-import {
-  Monitor,
-  MessageSquare,
-  Gamepad2,
-  Settings,
-  LogOut,
-  Wifi,
-  WifiOff,
-  Clock,
-  User,
-} from "lucide-react";
+
+// ── Animated Icons ───────────────────────────────────────────────────────────
+
+function IconDesktop({ active }) {
+  const c = active ? "var(--accent-color, #38bdf8)" : "#94a3b8";
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <rect
+        x="2"
+        y="2"
+        width="16"
+        height="11"
+        rx="2"
+        stroke={c}
+        strokeWidth="1.4"
+        fill={active ? `${c}18` : "none"}
+      />
+      <line x1="10" y1="13" x2="10" y2="16" stroke={c} strokeWidth="1.4" />
+      <line
+        x1="6"
+        y1="16"
+        x2="14"
+        y2="16"
+        stroke={c}
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      {active && <circle cx="10" cy="7.5" r="1.5" fill={c} opacity=".8" />}
+    </svg>
+  );
+}
+
+function IconChat({ active }) {
+  const c = active ? "var(--accent-color, #38bdf8)" : "#94a3b8";
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <style>{`.dot-a{animation:da 1.4s infinite}.dot-b{animation:db 1.4s infinite}.dot-c{animation:dc 1.4s infinite}@keyframes da{0%,100%{opacity:1}33%{opacity:.2}}@keyframes db{0%,100%{opacity:1}50%{opacity:.2}}@keyframes dc{0%,100%{opacity:1}66%{opacity:.2}}`}</style>
+      <rect
+        x="2"
+        y="3"
+        width="13"
+        height="9"
+        rx="3"
+        stroke={c}
+        strokeWidth="1.4"
+        fill={active ? `${c}18` : "none"}
+      />
+      {active ? (
+        <>
+          <circle cx="6" cy="7.5" r="1" fill={c} className="dot-a" />
+          <circle cx="8.5" cy="7.5" r="1" fill={c} className="dot-b" />
+          <circle cx="11" cy="7.5" r="1" fill={c} className="dot-c" />
+        </>
+      ) : (
+        <>
+          <line
+            x1="5.5"
+            y1="7.5"
+            x2="11"
+            y2="7.5"
+            stroke={c}
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            opacity=".6"
+          />
+        </>
+      )}
+      <rect
+        x="6"
+        y="10"
+        width="12"
+        height="8"
+        rx="2.5"
+        stroke={c}
+        strokeWidth="1.4"
+        fill={active ? `${c}12` : "none"}
+      />
+      <line
+        x1="9"
+        y1="14"
+        x2="15"
+        y2="14"
+        stroke={c}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity=".5"
+      />
+    </svg>
+  );
+}
+
+function IconGame({ active }) {
+  const c = active ? "#a78bfa" : "#94a3b8";
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <style>{`.gf{animation:gf 2s ease-in-out infinite}@keyframes gf{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}.bp{animation:bp 1s infinite}.bq{animation:bp 1s .33s infinite}.br{animation:bp 1s .66s infinite}@keyframes bp{0%,100%{opacity:.35}50%{opacity:1}}`}</style>
+      <g
+        className={active ? "gf" : ""}
+        style={{ transformOrigin: "10px 10px" }}
+      >
+        <rect
+          x="2"
+          y="6"
+          width="16"
+          height="10"
+          rx="5"
+          stroke={c}
+          strokeWidth="1.4"
+          fill={active ? `${c}15` : "none"}
+        />
+        <line
+          x1="7"
+          y1="9"
+          x2="7"
+          y2="13"
+          stroke={c}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+        <line
+          x1="5"
+          y1="11"
+          x2="9"
+          y2="11"
+          stroke={c}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+        <circle
+          cx="13"
+          cy="10"
+          r="1.1"
+          fill={c}
+          className={active ? "bp" : ""}
+          opacity={active ? 1 : 0.6}
+        />
+        <circle
+          cx="15"
+          cy="12"
+          r="1.1"
+          fill={c}
+          className={active ? "bq" : ""}
+          opacity={active ? 1 : 0.6}
+        />
+        <circle
+          cx="11"
+          cy="12"
+          r="1.1"
+          fill={c}
+          className={active ? "br" : ""}
+          opacity={active ? 1 : 0.6}
+        />
+      </g>
+    </svg>
+  );
+}
+
+function IconSettings({ active }) {
+  const c = active ? "#34d399" : "#94a3b8";
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <style>{`.sg{animation:sg 5s linear infinite}@keyframes sg{from{transform:rotate(0)}to{transform:rotate(360deg)}}.sg2{animation:sg2 3s linear infinite}@keyframes sg2{from{transform:rotate(360deg)}to{transform:rotate(0)}}`}</style>
+      <g
+        className={active ? "sg" : ""}
+        style={{ transformOrigin: "10px 10px" }}
+      >
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => (
+          <rect
+            key={i}
+            x="9.2"
+            y="3"
+            width="1.6"
+            height="3"
+            rx=".8"
+            fill={c}
+            style={{
+              transformOrigin: "10px 10px",
+              transform: `rotate(${deg}deg)`,
+              opacity: i % 2 === 0 ? 0.9 : 0.3,
+            }}
+          />
+        ))}
+      </g>
+      <g
+        className={active ? "sg2" : ""}
+        style={{ transformOrigin: "10px 10px" }}
+      >
+        <circle
+          cx="10"
+          cy="10"
+          r="4.5"
+          stroke={c}
+          strokeWidth="1.2"
+          fill="none"
+          opacity=".3"
+        />
+      </g>
+      <circle cx="10" cy="10" r="2.5" fill={c} opacity=".9" />
+    </svg>
+  );
+}
+
+function IconLogout() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M11 11l3-3-3-3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line
+        x1="14"
+        y1="8"
+        x2="6"
+        y2="8"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+// ── Taskbar ──────────────────────────────────────────────────────────────────
 
 export default function Taskbar() {
   const pathname = usePathname();
@@ -26,112 +244,250 @@ export default function Taskbar() {
   const { isConnected, onlineUsers } = useSocket();
   const [time, setTime] = useState(new Date());
 
-  // Real-time soat
-  useState(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  });
+  useEffect(() => {
+    // ✅ useEffect (useState emas)
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const navItems = [
-    { href: "/", icon: Monitor, label: "Desktop" },
-    { href: "/chat", icon: MessageSquare, label: "Chat" },
-    { href: "/games", icon: Gamepad2, label: "Games" },
-    { href: "/settings", icon: Settings, label: "Settings" },
+    {
+      href: "/",
+      icon: IconDesktop,
+      label: "Desktop",
+      activeColor: "var(--accent-color,#38bdf8)",
+    },
+    { href: "/chat", icon: IconChat, label: "Chat", activeColor: "#38bdf8" },
+    { href: "/games", icon: IconGame, label: "Games", activeColor: "#a78bfa" },
+    {
+      href: "/settings",
+      icon: IconSettings,
+      label: "Settings",
+      activeColor: "#34d399",
+    },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
-      {/* Glass morphism taskbar */}
-      <div className="glass border-t border-slate-700/50 px-4 py-2">
-        <div className="flex items-center justify-between max-w-screen-xl mx-auto">
-          {/* Chap: Foydalanuvchi avatari va username */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <img
-                src={
-                  user?.avatar ||
-                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`
-                }
-                alt={user?.username}
-                className="w-8 h-8 rounded-full border-2 border-[var(--accent-color)]"
-              />
-              {/* Online indikator */}
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-[var(--bg-primary)] animate-pulse-dot" />
-            </div>
-            <span className="text-sm font-mono text-slate-300 hidden sm:block">
-              {user?.username}
-            </span>
-          </div>
+    <>
+      <style>{`
+        @keyframes tbIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+        @keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .tb-nav-btn { position:relative; display:flex; flex-direction:column; align-items:center;
+          gap:2px; padding:6px 14px; border-radius:10px; border:none; background:transparent;
+          cursor:pointer; transition:all .18s ease; }
+        .tb-nav-btn:hover { background:rgba(255,255,255,.05); }
+        .tb-nav-btn.active { background:rgba(56,189,248,.12); }
+        .tb-nav-label { font-family:monospace; font-size:9px; letter-spacing:.06em; }
+      `}</style>
 
-          {/* O'rta: Navigatsiya ikonlari */}
-          <nav className="flex items-center gap-1">
-            {navItems.map(({ href, icon: Icon, label }) => {
-              const isActive = pathname === href;
-              return (
-                <Link key={href} href={href}>
-                  <button
-                    className={`
-                      relative flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-lg
-                      transition-all duration-200 group
-                      ${
-                        isActive
-                          ? "bg-[var(--accent-color)]/20 text-[var(--accent-color)]"
-                          : "text-slate-400 hover:text-white hover:bg-white/5"
-                      }
-                    `}
-                    title={label}
-                  >
-                    <Icon size={18} />
-                    <span className="text-[10px] font-mono">{label}</span>
-                    {/* Aktiv indikator chiziq */}
-                    {isActive && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-[var(--accent-color)] rounded-full" />
-                    )}
-                  </button>
-                </Link>
-              );
-            })}
-          </nav>
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          animation: "tbIn .5s ease both",
+        }}
+      >
+        {/* Top border glow */}
+        <div
+          style={{
+            height: 1,
+            background:
+              "linear-gradient(to right, transparent, rgba(56,189,248,.35), rgba(167,139,250,.25), transparent)",
+          }}
+        />
 
-          {/* O'ng: Status va logout */}
-          <div className="flex items-center gap-3">
-            {/* Online foydalanuvchilar soni */}
-            <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400">
-              <User size={12} />
-              <span>{onlineUsers.length} online</span>
-            </div>
-
-            {/* WebSocket holati */}
+        <div
+          style={{
+            background: "rgba(7,15,30,0.88)",
+            backdropFilter: "blur(20px)",
+            padding: "6px 20px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              maxWidth: 960,
+              margin: "0 auto",
+            }}
+          >
+            {/* LEFT — Avatar + username */}
             <div
-              className="flex items-center gap-1.5"
-              title={isConnected ? "Connected" : "Disconnected"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                minWidth: 140,
+              }}
             >
-              {isConnected ? (
-                <Wifi size={14} className="text-green-500" />
-              ) : (
-                <WifiOff size={14} className="text-red-500" />
-              )}
+              <div style={{ position: "relative" }}>
+                <img
+                  src={
+                    user?.avatar ||
+                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`
+                  }
+                  alt={user?.username}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    border: "2px solid var(--accent-color, #38bdf8)",
+                    boxShadow: "0 0 10px var(--accent-color, #38bdf8)40",
+                  }}
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: -1,
+                    right: -1,
+                    width: 9,
+                    height: 9,
+                    borderRadius: "50%",
+                    background: "#22c55e",
+                    border: "2px solid #070f1e",
+                    boxShadow: "0 0 6px #22c55e",
+                    animation: "pulseDot 2s infinite",
+                  }}
+                />
+              </div>
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  letterSpacing: ".04em",
+                }}
+              >
+                {user?.username}
+              </span>
             </div>
 
-            {/* Soat */}
-            <span className="text-xs font-mono text-slate-400 hidden sm:block">
-              {time.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
+            {/* CENTER — Nav icons */}
+            <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
+              {navItems.map(({ href, icon: Icon, label, activeColor }) => {
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <button
+                      className={`tb-nav-btn ${isActive ? "active" : ""}`}
+                      title={label}
+                      style={{ color: isActive ? activeColor : "#64748b" }}
+                    >
+                      <Icon active={isActive} />
+                      <span
+                        className="tb-nav-label"
+                        style={{ color: isActive ? activeColor : "#475569" }}
+                      >
+                        {label}
+                      </span>
+                      {/* Active dot */}
+                      {isActive && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            bottom: 2,
+                            width: 4,
+                            height: 4,
+                            borderRadius: "50%",
+                            background: activeColor,
+                            boxShadow: `0 0 6px ${activeColor}`,
+                          }}
+                        />
+                      )}
+                    </button>
+                  </Link>
+                );
               })}
-            </span>
+            </nav>
 
-            {/* Logout */}
-            <button
-              onClick={logout}
-              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all duration-200"
-              title="Logout"
+            {/* RIGHT — Status + clock + logout */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                minWidth: 140,
+                justifyContent: "flex-end",
+              }}
             >
-              <LogOut size={16} />
-            </button>
+              {/* Online count */}
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: "#475569",
+                }}
+              >
+                <span style={{ color: "#38bdf8" }}>{onlineUsers.length}</span>{" "}
+                online
+              </span>
+
+              {/* Connection status */}
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: isConnected ? "#22c55e" : "#ef4444",
+                    boxShadow: isConnected ? "0 0 6px #22c55e" : "none",
+                  }}
+                />
+              </span>
+
+              {/* Clock */}
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: "#64748b",
+                  letterSpacing: ".05em",
+                }}
+              >
+                {time.toLocaleTimeString("en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+
+              {/* Logout */}
+              <button
+                onClick={logout}
+                title="Logout"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#475569",
+                  padding: "4px 6px",
+                  borderRadius: 8,
+                  transition: "all .18s",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#f87171";
+                  e.currentTarget.style.background = "rgba(239,68,68,.1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#475569";
+                  e.currentTarget.style.background = "none";
+                }}
+              >
+                <IconLogout />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

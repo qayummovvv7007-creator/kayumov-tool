@@ -1,6 +1,4 @@
 // app/api/auth/me/route.js
-// GET /api/auth/me — joriy sessiyani tekshirish (sahifa yangilanganida)
-
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
@@ -8,9 +6,10 @@ import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const tokenData = getCurrentUser();
+    const tokenData = await getCurrentUser();
 
     if (!tokenData) {
+      // ✅ Har doim to'liq JSON qaytarish
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
@@ -33,6 +32,8 @@ export async function GET() {
       },
     });
   } catch (error) {
+    console.error("GET /api/auth/me error:", error);
+    // ✅ Xato bo'lsa ham JSON qaytarish (hech qachon bo'sh response emas)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Render.com socket serveriga ulanishga ruxsat berish
+  // ✅ socket.io-client ni server bundle dan chiqarish
+  serverExternalPackages: ["socket.io-client"],
+
   async headers() {
     return [
       {

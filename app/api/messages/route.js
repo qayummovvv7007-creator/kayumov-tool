@@ -1,5 +1,5 @@
 // app/api/messages/route.js
-// GET /api/messages — oxirgi 50 ta xabarni olish (sahifa yuklanganida)
+// GET /api/messages — oxirgi 50 ta xabarni olish
 
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
@@ -7,8 +7,9 @@ import Message from "@/models/Message";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(request) {
+  // ✅ request parametri
   try {
-    const user = getCurrentUser();
+    const user = getCurrentUser(request); // ✅ request uzatildi
     if (!user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -26,6 +27,7 @@ export async function GET(request) {
 
     return NextResponse.json({ messages: messages.reverse() });
   } catch (error) {
+    console.error("[/api/messages]", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

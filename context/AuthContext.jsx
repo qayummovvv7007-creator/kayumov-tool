@@ -1,6 +1,3 @@
-// context/AuthContext.jsx
-// Global autentifikatsiya holati — butun ilovada foydalanuvchi ma'lumotlari
-
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
@@ -8,12 +5,11 @@ import { useRouter } from "next/navigation";
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
+function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Sahifa yuklanganda sessiyani tekshirish
   useEffect(() => {
     checkAuth();
   }, []);
@@ -21,49 +17,96 @@ export function AuthProvider({ children }) {
   const checkAuth = async () => {
     try {
       const res = await fetch("/api/auth/me");
-      if (res.ok) {
-        const data = await res.json();
+      const text = await res.text();
+
+      if (!text || text.trim() === "") {
+        setUser(null);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setUser(null);
+        return;
+      }
+
+      if (res.ok && data.user) {
         setUser(data.user);
+      } else {
+        setUser(null);
       }
     } catch (err) {
       console.error("Auth check failed:", err);
+      setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (email, password) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setUser(data.user);
-      router.push("/");
-      return { success: true };
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const text = await res.text();
+      if (!text) return { success: false, error: "Empty response" };
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return { success: false, error: "Invalid server response" };
+      }
+
+      if (res.ok && data.user) {
+        setUser(data.user);
+        router.push("/");
+        return { success: true };
+      }
+      return { success: false, error: data.error || "Login failed" };
+    } catch {
+      return { success: false, error: "Network error" };
     }
-    return { success: false, error: data.error };
   };
 
   const signup = async (username, email, password) => {
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setUser(data.user);
-      router.push("/");
-      return { success: true };
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      const text = await res.text();
+      if (!text) return { success: false, error: "Empty response" };
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return { success: false, error: "Invalid server response" };
+      }
+
+      if (res.ok && data.user) {
+        setUser(data.user);
+        router.push("/");
+        return { success: true };
+      }
+      return { success: false, error: data.error || "Signup failed" };
+    } catch {
+      return { success: false, error: "Network error" };
     }
-    return { success: false, error: data.error };
   };
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
     setUser(null);
     router.push("/login");
   };
@@ -81,8 +124,10 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => {
+const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };
+
+export { AuthProvider, useAuth };
