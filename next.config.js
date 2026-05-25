@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ✅ socket.io-client ni server bundle dan chiqarish
   serverExternalPackages: ["socket.io-client"],
 
   async headers() {
@@ -11,7 +10,7 @@ const nextConfig = {
           { key: "Access-Control-Allow-Origin", value: "*" },
           {
             key: "Access-Control-Allow-Methods",
-            value: "GET,POST,PUT,DELETE,OPTIONS",
+            value: "GET,POST,PUT,PATCH,DELETE,OPTIONS", // ✅ PATCH qo'shildi
           },
           {
             key: "Access-Control-Allow-Headers",
