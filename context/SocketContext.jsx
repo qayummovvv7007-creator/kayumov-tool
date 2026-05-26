@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import { useAuth } from "./AuthContext";
 
 const SocketContext = createContext(null);
@@ -12,8 +19,16 @@ function SocketProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
 
+  // ✅ user.id ni useRef da saqlash — object reference muammosini hal qiladi
+  const userIdRef = useRef(null);
+  const usernameRef = useRef(null);
+  const avatarRef = useRef(null);
+
   useEffect(() => {
-    if (!user) {
+    const userId = user?.id || user?._id;
+
+    // User chiqib ketsa — socketni uzish
+    if (!userId) {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -21,42 +36,64 @@ function SocketProvider({ children }) {
         setIsConnected(false);
         setOnlineUsers([]);
       }
+      userIdRef.current = null;
       return;
     }
 
-    if (socketRef.current) return;
+    // ✅ Bir xil user — qayta ulanma
+    if (socketRef.current && userIdRef.current === userId.toString()) return;
 
-    // ✅ Dinamik import — faqat browser da, server da emas
+    userIdRef.current = userId.toString();
+    usernameRef.current = user.username;
+    avatarRef.current = user.avatar;
+
     const initSocket = async () => {
       const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
-
       if (!SOCKET_URL) {
-        console.warn("NEXT_PUBLIC_SOCKET_URL is not defined in .env.local");
+        console.warn("NEXT_PUBLIC_SOCKET_URL is not defined");
         return;
       }
 
-      // ✅ Dynamic import with { io } destructuring
+      // Eski socketni tozalash
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+
       const { io } = await import("socket.io-client");
 
       const newSocket = io(SOCKET_URL, {
         transports: ["websocket", "polling"],
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
+        timeout: 20000,
       });
 
       newSocket.on("connect", () => {
         console.log("Socket connected:", newSocket.id);
         setIsConnected(true);
+        // ✅ Ref dan o'qish — closure muammosi yo'q
         newSocket.emit("user:authenticate", {
-          userId: user.id,
-          username: user.username,
-          avatar: user.avatar,
+          userId: userIdRef.current,
+          username: usernameRef.current,
+          avatar: avatarRef.current,
         });
       });
 
-      newSocket.on("disconnect", () => {
-        console.log("Socket disconnected");
+      newSocket.on("disconnect", (reason) => {
+        console.log("Socket disconnected:", reason);
         setIsConnected(false);
+      });
+
+      newSocket.on("reconnect", () => {
+        console.log("Socket reconnected");
+        setIsConnected(true);
+        newSocket.emit("user:authenticate", {
+          userId: userIdRef.current,
+          username: usernameRef.current,
+          avatar: avatarRef.current,
+        });
       });
 
       newSocket.on("users:online-list", (users) => {
@@ -73,10 +110,16 @@ function SocketProvider({ children }) {
 
     initSocket();
 
+    // ✅ Cleanup
     return () => {
-      // cleanup faqat component unmount bo'lganda
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        setSocket(null);
+        setIsConnected(false);
+      }
     };
-  }, [user]);
+  }, [user?.id || user?._id]); // ✅ faqat ID o'zgarganda qayta ishlaydi
 
   return (
     <SocketContext.Provider value={{ socket, onlineUsers, isConnected }}>
