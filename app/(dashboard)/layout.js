@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Taskbar from "@/components/os/Taskbar";
 import InviteNotification from "@/components/games/InviteNotification";
+import MessageNotification from "@/components/chat/MessageNotification"; // ✅
 
 export default function DashboardLayout({ children }) {
   const { user, loading } = useAuth();
@@ -52,6 +53,7 @@ export default function DashboardLayout({ children }) {
       </main>
       <Taskbar />
       <InviteNotification />
+      <MessageNotification /> {/* ✅ */}
     </div>
   );
 }

@@ -1,80 +1,507 @@
-// components/games/GameLobby.jsx
-// Steam-ga o'xshash o'yin lobbisi
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSocket } from "@/context/SocketContext";
 import { useAuth } from "@/context/AuthContext";
-import GameCard from "./GameCard";
-import { Users, Gamepad2 } from "lucide-react";
+import TicTacToe from "./TicTacToe";
 
-// O'yinlar katalogi
 const GAMES = [
   {
     id: "tic-tac-toe",
     name: "Tic Tac Toe",
-    description: "Classic 3x3 grid game",
-    players: "2 players",
+    desc: "Classic 3x3 duel",
     icon: "⭕",
-    color: "#3b82f6",
+    color: "#38bdf8",
+    players: "2P",
     status: "available",
+    component: TicTacToe,
   },
   {
     id: "memory-cards",
     name: "Memory Cards",
-    description: "Find matching pairs",
-    players: "1-2 players",
+    desc: "Find matching pairs",
     icon: "🃏",
-    color: "#8b5cf6",
-    status: "available",
+    color: "#a78bfa",
+    players: "1-2P",
+    status: "soon",
+    component: null,
   },
   {
     id: "snake",
     name: "Snake",
-    description: "Classic snake game",
-    players: "1 player",
+    desc: "Classic snake game",
     icon: "🐍",
     color: "#22c55e",
-    status: "available",
+    players: "1P",
+    status: "soon",
+    component: null,
   },
   {
     id: "pong",
     name: "Pong",
-    description: "Retro ping-pong battle",
-    players: "2 players",
+    desc: "Retro ping-pong",
     icon: "🏓",
     color: "#f97316",
-    status: "coming-soon",
+    players: "2P",
+    status: "soon",
+    component: null,
+  },
+  {
+    id: "chess",
+    name: "Chess",
+    desc: "Strategic battle",
+    icon: "♟️",
+    color: "#e2e8f0",
+    players: "2P",
+    status: "soon",
+    component: null,
+  },
+  {
+    id: "checkers",
+    name: "Checkers",
+    desc: "Board game classic",
+    icon: "🔴",
+    color: "#ef4444",
+    players: "2P",
+    status: "soon",
+    component: null,
   },
 ];
 
+function PlayerCard({ u, isMe, onInvite, selectedGame, sentInvites }) {
+  const avatar =
+    u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`;
+  const hasSent = sentInvites?.has(u.userId);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 12px",
+        borderRadius: 12,
+        background: isMe ? "rgba(56,189,248,0.08)" : "rgba(15,25,48,0.6)",
+        border: `1px solid ${isMe ? "rgba(56,189,248,0.2)" : "rgba(56,189,248,0.06)"}`,
+        transition: "all .15s",
+        marginBottom: 6,
+      }}
+    >
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <img
+          src={avatar}
+          alt={u.username}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: `2px solid ${isMe ? "#38bdf8" : "rgba(56,189,248,0.2)"}`,
+          }}
+        />
+        <span
+          style={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            width: 9,
+            height: 9,
+            borderRadius: "50%",
+            background: "#22c55e",
+            border: "2px solid #070f1e",
+            boxShadow: "0 0 6px #22c55e",
+          }}
+        />
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: 13,
+            fontWeight: 700,
+            color: isMe ? "#38bdf8" : "#f1f5f9",
+            margin: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {u.username}
+          {isMe ? " (you)" : ""}
+        </p>
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: 10,
+            color: "#22c55e",
+            margin: 0,
+          }}
+        >
+          ● online
+        </p>
+      </div>
+
+      {!isMe && selectedGame && selectedGame.status === "available" && (
+        <button
+          onClick={() => onInvite(u.userId)}
+          disabled={hasSent}
+          style={{
+            padding: "5px 10px",
+            background: hasSent
+              ? "rgba(34,197,94,0.1)"
+              : "rgba(56,189,248,0.12)",
+            border: `1px solid ${hasSent ? "rgba(34,197,94,0.3)" : "rgba(56,189,248,0.3)"}`,
+            borderRadius: 8,
+            fontFamily: "monospace",
+            fontSize: 10,
+            fontWeight: 700,
+            color: hasSent ? "#22c55e" : "#38bdf8",
+            cursor: hasSent ? "default" : "pointer",
+            whiteSpace: "nowrap",
+            letterSpacing: ".04em",
+            transition: "all .15s",
+            flexShrink: 0,
+          }}
+        >
+          {hasSent ? "✓ SENT" : "INVITE →"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function GameCardItem({ game, isSelected, onSelect, isPlaying }) {
+  const isSoon = game.status === "soon";
+  return (
+    <div
+      onClick={() => !isSoon && onSelect(game)}
+      style={{
+        padding: "14px 16px",
+        borderRadius: 14,
+        cursor: isSoon ? "not-allowed" : "pointer",
+        background: isSelected ? `${game.color}15` : "rgba(15,25,48,0.7)",
+        border: `1px solid ${isSelected ? game.color + "50" : "rgba(56,189,248,0.08)"}`,
+        opacity: isSoon ? 0.5 : 1,
+        transition: "all .18s",
+        marginBottom: 8,
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        position: "relative",
+        overflow: "hidden",
+      }}
+      onMouseEnter={(e) => {
+        if (!isSoon) {
+          e.currentTarget.style.borderColor = game.color + "40";
+          e.currentTarget.style.transform = "translateX(3px)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = isSelected
+          ? game.color + "50"
+          : "rgba(56,189,248,0.08)";
+        e.currentTarget.style.transform = "translateX(0)";
+      }}
+    >
+      {isSelected && (
+        <div
+          style={{
+            position: "absolute",
+            right: -20,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 60,
+            height: 60,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${game.color}30, transparent)`,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          flexShrink: 0,
+          background: `${game.color}15`,
+          border: `1px solid ${game.color}30`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 22,
+        }}
+      >
+        {game.icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 2,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "monospace",
+              fontWeight: 700,
+              fontSize: 13,
+              color: "#f1f5f9",
+            }}
+          >
+            {game.name}
+          </span>
+          {isSoon && (
+            <span
+              style={{
+                fontFamily: "monospace",
+                fontSize: 9,
+                color: "#64748b",
+                padding: "1px 6px",
+                borderRadius: 99,
+                background: "rgba(100,116,139,0.1)",
+                border: "1px solid rgba(100,116,139,0.2)",
+              }}
+            >
+              SOON
+            </span>
+          )}
+          {isPlaying && (
+            <span
+              style={{
+                fontFamily: "monospace",
+                fontSize: 9,
+                color: "#22c55e",
+                padding: "1px 6px",
+                borderRadius: 99,
+                background: "rgba(34,197,94,0.1)",
+                border: "1px solid rgba(34,197,94,0.2)",
+              }}
+            >
+              PLAYING
+            </span>
+          )}
+        </div>
+        <span
+          style={{
+            fontFamily: "monospace",
+            fontSize: 11,
+            color: "rgba(148,163,184,0.5)",
+          }}
+        >
+          {game.desc}
+        </span>
+      </div>
+      <span
+        style={{
+          fontFamily: "monospace",
+          fontSize: 10,
+          color: game.color,
+          padding: "3px 8px",
+          borderRadius: 99,
+          background: `${game.color}12`,
+          border: `1px solid ${game.color}25`,
+          flexShrink: 0,
+        }}
+      >
+        {game.players}
+      </span>
+    </div>
+  );
+}
+
+function GameStartBanner({ gameData, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <>
+      <style>{`
+        @keyframes bannerIn { 0%{opacity:0;transform:scale(0.3) rotate(-10deg)} 60%{transform:scale(1.08) rotate(2deg)} 100%{opacity:1;transform:scale(1) rotate(0)} }
+        @keyframes starBurst { 0%{transform:scale(0) rotate(0);opacity:1} 100%{transform:scale(2.5) rotate(180deg);opacity:0} }
+        @keyframes vsWobble { 0%,100%{transform:scale(1) rotate(-3deg)} 50%{transform:scale(1.15) rotate(3deg)} }
+        @keyframes textShimmer2 { 0%{background-position:-200% center} 100%{background-position:200% center} }
+      `}</style>
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9998,
+          background: "rgba(0,0,0,0.85)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              width: 300 * i,
+              height: 300 * i,
+              borderRadius: "50%",
+              border: `2px solid rgba(56,189,248,${0.3 / i})`,
+              animation: `starBurst 1.5s ${i * 0.2}s ease-out both`,
+            }}
+          />
+        ))}
+        <div
+          style={{
+            textAlign: "center",
+            animation: "bannerIn .6s cubic-bezier(0.16,1,0.3,1)",
+          }}
+        >
+          <div style={{ fontSize: 72, marginBottom: 16, lineHeight: 1 }}>
+            {GAMES.find((g) => g.id === gameData?.gameId)?.icon || "🎮"}
+          </div>
+          <div
+            style={{
+              fontFamily: "monospace",
+              fontWeight: 900,
+              fontSize: 42,
+              letterSpacing: ".15em",
+              background: "linear-gradient(135deg, #38bdf8, #a78bfa, #38bdf8)",
+              backgroundSize: "200% auto",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              marginBottom: 16,
+              animation: "textShimmer2 1.5s linear infinite",
+            }}
+          >
+            GAME START!
+          </div>
+          {gameData?.players && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 20,
+              }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <img
+                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${gameData.players[0]?.username}`}
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    border: "3px solid #38bdf8",
+                    boxShadow: "0 0 20px #38bdf860",
+                  }}
+                />
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: 13,
+                    color: "#38bdf8",
+                    margin: "6px 0 0",
+                    fontWeight: 700,
+                  }}
+                >
+                  {gameData.players[0]?.username}
+                </p>
+              </div>
+              <div
+                style={{
+                  fontFamily: "monospace",
+                  fontWeight: 900,
+                  fontSize: 28,
+                  color: "#f97316",
+                  animation: "vsWobble .6s ease-in-out infinite",
+                  padding: "8px 16px",
+                  background: "rgba(249,115,22,0.1)",
+                  border: "2px solid rgba(249,115,22,0.3)",
+                  borderRadius: 12,
+                }}
+              >
+                VS
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <img
+                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${gameData.players[1]?.username}`}
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    border: "3px solid #a78bfa",
+                    boxShadow: "0 0 20px #a78bfa60",
+                  }}
+                />
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: 13,
+                    color: "#a78bfa",
+                    margin: "6px 0 0",
+                    fontWeight: 700,
+                  }}
+                >
+                  {gameData.players[1]?.username}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Main GameLobby ────────────────────────────────────────────────────────────
 export default function GameLobby() {
   const { socket, onlineUsers } = useSocket();
   const { user } = useAuth();
-  const [selectedGame, setSelectedGame] = useState(null);
-  const [sentInvites, setSentInvites] = useState(new Set());
 
-  // O'yinni tanlaganda invite panel ko'rsatish
-  const handleGameSelect = (game) => {
-    if (game.status === "coming-soon") return;
-    setSelectedGame(selectedGame?.id === game.id ? null : game);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [playingGame, setPlayingGame] = useState(null);
+  const [sentInvites, setSentInvites] = useState(new Set());
+  const [startBanner, setStartBanner] = useState(null);
+  // ✅ gameSession — multiplayer uchun gameRoom va players saqlanadi
+  const [gameSession, setGameSession] = useState(null);
+
+  const myId = user?.id || user?._id;
+
+  // ✅ game:started eventini tinglash
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleGameStarted = (data) => {
+      // data = { gameRoom, gameId, players: [{userId, username}] }
+      console.log("🎮 Game started:", data);
+      setGameSession(data); // ← gameRoom va players saqlaymiz
+      setStartBanner(data); // ← animatsiya ko'rsatamiz
+    };
+
+    socket.on("game:started", handleGameStarted);
+    return () => socket.off("game:started", handleGameStarted);
+  }, [socket]);
+
+  // ✅ Animatsiya tugagach — o'yinni ochish
+  const handleBannerDone = () => {
+    if (!gameSession) return;
+    const game = GAMES.find((g) => g.id === gameSession.gameId);
+    if (game?.component) {
+      setPlayingGame(game);
+    }
+    setStartBanner(null);
   };
 
-  // Foydalanuvchiga o'yin taklifi yuborish
-  const handleSendInvite = (targetUserId, targetUsername) => {
+  const handleInvite = (targetUserId) => {
     if (!socket || !selectedGame) return;
-
     socket.emit("game:invite", {
       targetUserId,
       gameId: selectedGame.id,
       gameName: selectedGame.name,
     });
-
-    // Yuborilgan takliflarni kuzatish (UI uchun)
     setSentInvites((prev) => new Set([...prev, targetUserId]));
-
-    // 10 soniyadan keyin holat tozalanadi
     setTimeout(() => {
       setSentInvites((prev) => {
         const next = new Set(prev);
@@ -84,133 +511,304 @@ export default function GameLobby() {
     }, 10000);
   };
 
-  // O'zimizdan boshqa online foydalanuvchilar
-  const otherOnlineUsers = onlineUsers.filter((u) => u.userId !== user?.id);
+  const handleSelectGame = (game) => {
+    setSelectedGame(selectedGame?.id === game.id ? null : game);
+    setPlayingGame(null);
+  };
+
+  const handlePlayNow = () => {
+    if (!selectedGame?.component) return;
+    // Solo o'yin — gameSession yo'q
+    setGameSession(null);
+    setPlayingGame(selectedGame);
+  };
+
+  const handleCloseGame = () => {
+    setPlayingGame(null);
+    setGameSession(null);
+  };
+
+  const GameComponent = playingGame?.component;
 
   return (
-    <div className="flex gap-6 h-full">
-      {/* ===== O'YINLAR KATALOGI ===== */}
-      <div className="flex-1">
-        <div className="mb-6">
-          <h2 className="text-xl font-mono font-bold flex items-center gap-2">
-            <Gamepad2 size={20} className="text-[var(--accent-color)]" />
-            Game Library
-          </h2>
-          <p className="text-sm text-slate-400 font-mono mt-1">
-            Select a game and invite online players
-          </p>
-        </div>
+    <>
+      <style>{`
+        @keyframes lobbyIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+        @keyframes textShimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+      `}</style>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {GAMES.map((game) => (
-            <GameCard
-              key={game.id}
-              game={game}
-              isSelected={selectedGame?.id === game.id}
-              onSelect={() => handleGameSelect(game)}
-            />
-          ))}
-        </div>
+      {/* ✅ Kirish animatsiyasi */}
+      {startBanner && (
+        <GameStartBanner gameData={startBanner} onDone={handleBannerDone} />
+      )}
 
-        {/* Tanlangan o'yin uchun invite panel */}
-        {selectedGame && (
-          <div className="mt-6 glass rounded-xl p-5 animate-fade-in border border-[var(--accent-color)]/20">
-            <h3 className="font-mono font-semibold mb-3 text-[var(--accent-color)]">
-              Invite to {selectedGame.name}
+      <div
+        style={{
+          display: "flex",
+          height: "calc(100vh - 56px)",
+          overflow: "hidden",
+          animation: "lobbyIn .4s ease both",
+          fontFamily: "monospace",
+        }}
+      >
+        {/* ══ CHAP: Online players ══════════════════════════════════════════ */}
+        <div
+          style={{
+            width: 240,
+            flexShrink: 0,
+            borderRight: "1px solid rgba(56,189,248,0.1)",
+            background: "rgba(5,10,22,0.85)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "16px 14px 10px",
+              borderBottom: "1px solid rgba(56,189,248,0.08)",
+            }}
+          >
+            <h3
+              style={{
+                fontFamily: "monospace",
+                fontWeight: 800,
+                fontSize: 13,
+                color: "#f1f5f9",
+                margin: "0 0 2px",
+              }}
+            >
+              Players<span style={{ color: "#38bdf8" }}>_</span>
             </h3>
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontSize: 10,
+                color: "#334155",
+                margin: 0,
+                letterSpacing: ".08em",
+              }}
+            >
+              <span style={{ color: "#22c55e" }}>{onlineUsers.length}</span>{" "}
+              ONLINE NOW
+            </p>
+          </div>
 
-            {otherOnlineUsers.length === 0 ? (
-              <p className="text-sm text-slate-500 font-mono">
-                No other players online. Share the link and invite friends!
+          <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
+            {onlineUsers.map((u) => (
+              <PlayerCard
+                key={u.userId}
+                u={u}
+                isMe={String(u.userId) === String(myId)}
+                onInvite={handleInvite}
+                selectedGame={selectedGame}
+                sentInvites={sentInvites}
+              />
+            ))}
+            {onlineUsers.length === 0 && (
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: "#334155",
+                  textAlign: "center",
+                  padding: "20px 0",
+                }}
+              >
+                No players online
               </p>
-            ) : (
-              <div className="space-y-2">
-                {otherOnlineUsers.map((onlineUser) => (
-                  <div
-                    key={onlineUser.userId}
-                    className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="relative">
-                        <img
-                          src={
-                            onlineUser.avatar ||
-                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${onlineUser.username}`
-                          }
-                          className="w-8 h-8 rounded-full border border-slate-700"
-                          alt={onlineUser.username}
-                        />
-                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-slate-800" />
-                      </div>
-                      <span className="text-sm font-mono">
-                        {onlineUser.username}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() =>
-                        handleSendInvite(onlineUser.userId, onlineUser.username)
-                      }
-                      disabled={sentInvites.has(onlineUser.userId)}
-                      className="
-                        px-3 py-1.5 text-xs font-mono rounded-lg transition-all
-                        bg-[var(--accent-color)]/20 border border-[var(--accent-color)]/40
-                        hover:bg-[var(--accent-color)]/40 text-[var(--accent-color)]
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                      "
-                    >
-                      {sentInvites.has(onlineUser.userId)
-                        ? "✓ Invite Sent"
-                        : "Send Invite →"}
-                    </button>
-                  </div>
-                ))}
-              </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* ===== ONLINE O'YINCHILAR PANEL (Steam sidebar) ===== */}
-      <div className="w-64 flex-shrink-0 glass rounded-xl p-4 h-fit">
-        <div className="flex items-center gap-2 mb-4">
-          <Users size={16} className="text-[var(--accent-color)]" />
-          <h3 className="text-sm font-mono font-semibold">
-            Players Online ({onlineUsers.length})
-          </h3>
+          {selectedGame && (
+            <div
+              style={{
+                padding: "12px 14px",
+                borderTop: "1px solid rgba(56,189,248,0.08)",
+                background: `${selectedGame.color}08`,
+              }}
+            >
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 10,
+                  color: selectedGame.color,
+                  margin: "0 0 6px",
+                  letterSpacing: ".08em",
+                }}
+              >
+                SELECTED GAME
+              </p>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#f1f5f9",
+                  margin: "0 0 8px",
+                }}
+              >
+                {selectedGame.icon} {selectedGame.name}
+              </p>
+              {selectedGame.component && (
+                <button
+                  onClick={handlePlayNow}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    background: `linear-gradient(135deg, ${selectedGame.color}, ${selectedGame.color}99)`,
+                    border: "none",
+                    borderRadius: 10,
+                    fontFamily: "monospace",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#020c1b",
+                    cursor: "pointer",
+                    letterSpacing: ".06em",
+                  }}
+                >
+                  ▶ PLAY NOW (solo)
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="space-y-2">
-          {onlineUsers.map((onlineUser) => (
+        {/* ══ O'RTA: Game area ══════════════════════════════════════════════ */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            minWidth: 0,
+          }}
+        >
+          {GameComponent ? (
             <div
-              key={onlineUser.userId}
-              className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/5 transition-colors"
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(7,15,30,0.5)",
+                overflow: "auto",
+                padding: "20px",
+              }}
             >
-              <div className="relative">
-                <img
-                  src={
-                    onlineUser.avatar ||
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${onlineUser.username}`
-                  }
-                  className="w-8 h-8 rounded-full"
-                  alt={onlineUser.username}
+              <div
+                style={{
+                  background: "rgba(10,20,38,0.9)",
+                  border: `1px solid ${playingGame.color}30`,
+                  borderRadius: 24,
+                  minWidth: 360,
+                  boxShadow: `0 0 60px ${playingGame.color}15`,
+                }}
+              >
+                {/* ✅ gameRoom, players, isMultiplayer uzatilmoqda */}
+                <GameComponent
+                  onClose={handleCloseGame}
+                  gameRoom={gameSession?.gameRoom}
+                  players={gameSession?.players}
+                  isMultiplayer={!!gameSession}
                 />
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[var(--bg-primary)]" />
               </div>
-              <div>
+            </div>
+          ) : (
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 16,
+                opacity: 0.3,
+              }}
+            >
+              <div style={{ fontSize: 64 }}>🎮</div>
+              <div style={{ textAlign: "center" }}>
                 <p
-                  className={`text-sm font-mono leading-none ${onlineUser.userId === user?.id ? "text-[var(--accent-color)]" : "text-white"}`}
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: 16,
+                    color: "#94a3b8",
+                    margin: "0 0 6px",
+                    fontWeight: 700,
+                  }}
                 >
-                  {onlineUser.username}
+                  Select a game
                 </p>
-                <p className="text-[10px] text-green-400 font-mono mt-0.5">
-                  ● Online
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: 12,
+                    color: "#475569",
+                    margin: 0,
+                  }}
+                >
+                  Choose from the right panel
                 </p>
               </div>
             </div>
-          ))}
+          )}
+        </div>
+
+        {/* ══ O'NG: Games list ══════════════════════════════════════════════ */}
+        <div
+          style={{
+            width: 260,
+            flexShrink: 0,
+            borderLeft: "1px solid rgba(56,189,248,0.1)",
+            background: "rgba(5,10,22,0.85)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "16px 14px 10px",
+              borderBottom: "1px solid rgba(56,189,248,0.08)",
+            }}
+          >
+            <h3
+              style={{
+                fontFamily: "monospace",
+                fontWeight: 800,
+                fontSize: 13,
+                color: "#f1f5f9",
+                margin: "0 0 2px",
+              }}
+            >
+              Games<span style={{ color: "#a78bfa" }}>_</span>
+            </h3>
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontSize: 10,
+                color: "#334155",
+                margin: 0,
+                letterSpacing: ".08em",
+              }}
+            >
+              {GAMES.filter((g) => g.status === "available").length} AVAILABLE
+            </p>
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
+            {GAMES.map((game) => (
+              <GameCardItem
+                key={game.id}
+                game={game}
+                isSelected={selectedGame?.id === game.id}
+                isPlaying={playingGame?.id === game.id}
+                onSelect={handleSelectGame}
+              />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

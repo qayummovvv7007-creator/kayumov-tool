@@ -6,8 +6,6 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useSocket } from "@/context/SocketContext";
 
-// ── Animated Icons ───────────────────────────────────────────────────────────
-
 function IconDesktop({ active }) {
   const c = active ? "var(--accent-color, #38bdf8)" : "#94a3b8";
   return (
@@ -37,29 +35,29 @@ function IconDesktop({ active }) {
   );
 }
 
-function IconChat({ active }) {
+function IconChat({ active, hasUnread }) {
   const c = active ? "var(--accent-color, #38bdf8)" : "#94a3b8";
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <style>{`.dot-a{animation:da 1.4s infinite}.dot-b{animation:db 1.4s infinite}.dot-c{animation:dc 1.4s infinite}@keyframes da{0%,100%{opacity:1}33%{opacity:.2}}@keyframes db{0%,100%{opacity:1}50%{opacity:.2}}@keyframes dc{0%,100%{opacity:1}66%{opacity:.2}}`}</style>
-      <rect
-        x="2"
-        y="3"
-        width="13"
-        height="9"
-        rx="3"
-        stroke={c}
-        strokeWidth="1.4"
-        fill={active ? `${c}18` : "none"}
-      />
-      {active ? (
-        <>
-          <circle cx="6" cy="7.5" r="1" fill={c} className="dot-a" />
-          <circle cx="8.5" cy="7.5" r="1" fill={c} className="dot-b" />
-          <circle cx="11" cy="7.5" r="1" fill={c} className="dot-c" />
-        </>
-      ) : (
-        <>
+    <div style={{ position: "relative", display: "inline-flex" }}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <style>{`.dot-a{animation:da 1.4s infinite}.dot-b{animation:db 1.4s infinite}.dot-c{animation:dc 1.4s infinite}@keyframes da{0%,100%{opacity:1}33%{opacity:.2}}@keyframes db{0%,100%{opacity:1}50%{opacity:.2}}@keyframes dc{0%,100%{opacity:1}66%{opacity:.2}}`}</style>
+        <rect
+          x="2"
+          y="3"
+          width="13"
+          height="9"
+          rx="3"
+          stroke={c}
+          strokeWidth="1.4"
+          fill={active ? `${c}18` : "none"}
+        />
+        {active ? (
+          <>
+            <circle cx="6" cy="7.5" r="1" fill={c} className="dot-a" />
+            <circle cx="8.5" cy="7.5" r="1" fill={c} className="dot-b" />
+            <circle cx="11" cy="7.5" r="1" fill={c} className="dot-c" />
+          </>
+        ) : (
           <line
             x1="5.5"
             y1="7.5"
@@ -70,29 +68,46 @@ function IconChat({ active }) {
             strokeLinecap="round"
             opacity=".6"
           />
-        </>
+        )}
+        <rect
+          x="6"
+          y="10"
+          width="12"
+          height="8"
+          rx="2.5"
+          stroke={c}
+          strokeWidth="1.4"
+          fill={active ? `${c}12` : "none"}
+        />
+        <line
+          x1="9"
+          y1="14"
+          x2="15"
+          y2="14"
+          stroke={c}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity=".5"
+        />
+      </svg>
+
+      {/* ✅ Unread badge */}
+      {hasUnread && (
+        <span
+          style={{
+            position: "absolute",
+            top: -4,
+            right: -4,
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: "#ef4444",
+            border: "2px solid #070f1e",
+            animation: "unreadPing 1.5s ease-in-out infinite",
+          }}
+        />
       )}
-      <rect
-        x="6"
-        y="10"
-        width="12"
-        height="8"
-        rx="2.5"
-        stroke={c}
-        strokeWidth="1.4"
-        fill={active ? `${c}12` : "none"}
-      />
-      <line
-        x1="9"
-        y1="14"
-        x2="15"
-        y2="14"
-        stroke={c}
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        opacity=".5"
-      />
-    </svg>
+    </div>
   );
 }
 
@@ -236,32 +251,46 @@ function IconLogout() {
   );
 }
 
-// ── Taskbar ──────────────────────────────────────────────────────────────────
-
 export default function Taskbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { isConnected, onlineUsers } = useSocket();
+  const { isConnected, onlineUsers, totalUnread, setTotalUnread } = useSocket();
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
-    // ✅ useEffect (useState emas)
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
+  // ✅ Chat sahifasiga kirganida unread ni reset qilish
+  useEffect(() => {
+    if (pathname === "/chat") {
+      setTotalUnread(0);
+    }
+  }, [pathname, setTotalUnread]);
+
   const navItems = [
     {
       href: "/",
-      icon: IconDesktop,
+      icon: (a) => <IconDesktop active={a} />,
       label: "Desktop",
       activeColor: "var(--accent-color,#38bdf8)",
     },
-    { href: "/chat", icon: IconChat, label: "Chat", activeColor: "#38bdf8" },
-    { href: "/games", icon: IconGame, label: "Games", activeColor: "#a78bfa" },
+    {
+      href: "/chat",
+      icon: (a) => <IconChat active={a} hasUnread={totalUnread > 0} />,
+      label: "Chat",
+      activeColor: "#38bdf8",
+    },
+    {
+      href: "/games",
+      icon: (a) => <IconGame active={a} />,
+      label: "Games",
+      activeColor: "#a78bfa",
+    },
     {
       href: "/settings",
-      icon: IconSettings,
+      icon: (a) => <IconSettings active={a} />,
       label: "Settings",
       activeColor: "#34d399",
     },
@@ -270,8 +299,13 @@ export default function Taskbar() {
   return (
     <>
       <style>{`
-        @keyframes tbIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
-        @keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes tbIn       { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+        @keyframes pulseDot   { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes unreadPing {
+          0%   { transform:scale(1);   opacity:1; box-shadow:0 0 0 0 rgba(239,68,68,.8); }
+          50%  { transform:scale(1.2); opacity:1; box-shadow:0 0 0 5px rgba(239,68,68,0); }
+          100% { transform:scale(1);   opacity:1; box-shadow:0 0 0 0 rgba(239,68,68,0); }
+        }
         .tb-nav-btn { position:relative; display:flex; flex-direction:column; align-items:center;
           gap:2px; padding:6px 14px; border-radius:10px; border:none; background:transparent;
           cursor:pointer; transition:all .18s ease; }
@@ -290,12 +324,11 @@ export default function Taskbar() {
           animation: "tbIn .5s ease both",
         }}
       >
-        {/* Top border glow */}
         <div
           style={{
             height: 1,
             background:
-              "linear-gradient(to right, transparent, rgba(56,189,248,.35), rgba(167,139,250,.25), transparent)",
+              "linear-gradient(to right,transparent,rgba(56,189,248,.35),rgba(167,139,250,.25),transparent)",
           }}
         />
 
@@ -315,7 +348,7 @@ export default function Taskbar() {
               margin: "0 auto",
             }}
           >
-            {/* LEFT — Avatar + username */}
+            {/* LEFT */}
             <div
               style={{
                 display: "flex",
@@ -335,8 +368,8 @@ export default function Taskbar() {
                     width: 32,
                     height: 32,
                     borderRadius: "50%",
-                    border: "2px solid var(--accent-color, #38bdf8)",
-                    boxShadow: "0 0 10px var(--accent-color, #38bdf8)40",
+                    border: "2px solid var(--accent-color,#38bdf8)",
+                    boxShadow: "0 0 10px var(--accent-color,#38bdf8)40",
                   }}
                 />
                 <span
@@ -366,9 +399,9 @@ export default function Taskbar() {
               </span>
             </div>
 
-            {/* CENTER — Nav icons */}
+            {/* CENTER */}
             <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              {navItems.map(({ href, icon: Icon, label, activeColor }) => {
+              {navItems.map(({ href, icon, label, activeColor }) => {
                 const isActive = pathname === href;
                 return (
                   <Link
@@ -381,14 +414,29 @@ export default function Taskbar() {
                       title={label}
                       style={{ color: isActive ? activeColor : "#64748b" }}
                     >
-                      <Icon active={isActive} />
+                      {icon(isActive)}
                       <span
                         className="tb-nav-label"
                         style={{ color: isActive ? activeColor : "#475569" }}
                       >
                         {label}
+                        {/* ✅ Chat label da unread count */}
+                        {label === "Chat" && totalUnread > 0 && (
+                          <span
+                            style={{
+                              marginLeft: 4,
+                              background: "#ef4444",
+                              color: "#fff",
+                              borderRadius: 99,
+                              padding: "0 4px",
+                              fontSize: 8,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {totalUnread > 99 ? "99+" : totalUnread}
+                          </span>
+                        )}
                       </span>
-                      {/* Active dot */}
                       {isActive && (
                         <span
                           style={{
@@ -408,7 +456,7 @@ export default function Taskbar() {
               })}
             </nav>
 
-            {/* RIGHT — Status + clock + logout */}
+            {/* RIGHT */}
             <div
               style={{
                 display: "flex",
@@ -418,7 +466,6 @@ export default function Taskbar() {
                 justifyContent: "flex-end",
               }}
             >
-              {/* Online count */}
               <span
                 style={{
                   fontFamily: "monospace",
@@ -429,8 +476,6 @@ export default function Taskbar() {
                 <span style={{ color: "#38bdf8" }}>{onlineUsers.length}</span>{" "}
                 online
               </span>
-
-              {/* Connection status */}
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <span
                   style={{
@@ -442,8 +487,6 @@ export default function Taskbar() {
                   }}
                 />
               </span>
-
-              {/* Clock */}
               <span
                 style={{
                   fontFamily: "monospace",
@@ -457,8 +500,6 @@ export default function Taskbar() {
                   minute: "2-digit",
                 })}
               </span>
-
-              {/* Logout */}
               <button
                 onClick={logout}
                 title="Logout"

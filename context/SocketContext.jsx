@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useRef,
-  useCallback,
-} from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useAuth } from "./AuthContext";
 
 const SocketContext = createContext(null);
@@ -17,17 +10,16 @@ function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [totalUnread, setTotalUnread] = useState(0);
   const socketRef = useRef(null);
-
-  // ✅ user.id ni useRef da saqlash — object reference muammosini hal qiladi
   const userIdRef = useRef(null);
   const usernameRef = useRef(null);
   const avatarRef = useRef(null);
 
-  useEffect(() => {
-    const userId = user?.id || user?._id;
+  // ✅ Stable qiymat
+  const userId = user?.id?.toString() || user?._id?.toString() || null;
 
-    // User chiqib ketsa — socketni uzish
+  useEffect(() => {
     if (!userId) {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -40,21 +32,16 @@ function SocketProvider({ children }) {
       return;
     }
 
-    // ✅ Bir xil user — qayta ulanma
-    if (socketRef.current && userIdRef.current === userId.toString()) return;
+    if (socketRef.current && userIdRef.current === userId) return;
 
-    userIdRef.current = userId.toString();
+    userIdRef.current = userId;
     usernameRef.current = user.username;
     avatarRef.current = user.avatar;
 
     const initSocket = async () => {
       const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
-      if (!SOCKET_URL) {
-        console.warn("NEXT_PUBLIC_SOCKET_URL is not defined");
-        return;
-      }
+      if (!SOCKET_URL) return;
 
-      // Eski socketni tozalash
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -71,9 +58,7 @@ function SocketProvider({ children }) {
       });
 
       newSocket.on("connect", () => {
-        console.log("Socket connected:", newSocket.id);
         setIsConnected(true);
-        // ✅ Ref dan o'qish — closure muammosi yo'q
         newSocket.emit("user:authenticate", {
           userId: userIdRef.current,
           username: usernameRef.current,
@@ -81,13 +66,9 @@ function SocketProvider({ children }) {
         });
       });
 
-      newSocket.on("disconnect", (reason) => {
-        console.log("Socket disconnected:", reason);
-        setIsConnected(false);
-      });
+      newSocket.on("disconnect", () => setIsConnected(false));
 
       newSocket.on("reconnect", () => {
-        console.log("Socket reconnected");
         setIsConnected(true);
         newSocket.emit("user:authenticate", {
           userId: userIdRef.current,
@@ -96,12 +77,17 @@ function SocketProvider({ children }) {
         });
       });
 
-      newSocket.on("users:online-list", (users) => {
-        setOnlineUsers(users);
+      newSocket.on("users:online-list", (users) => setOnlineUsers(users));
+
+      newSocket.on("dm:received", (msg) => {
+        const senderId = msg.sender?._id?.toString() || msg.sender?.toString();
+        if (senderId !== userIdRef.current) {
+          setTotalUnread((n) => n + 1);
+        }
       });
 
       newSocket.on("connect_error", (err) => {
-        console.error("Socket connection error:", err.message);
+        console.error("Socket error:", err.message);
       });
 
       socketRef.current = newSocket;
@@ -110,7 +96,6 @@ function SocketProvider({ children }) {
 
     initSocket();
 
-    // ✅ Cleanup
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -119,10 +104,12 @@ function SocketProvider({ children }) {
         setIsConnected(false);
       }
     };
-  }, [user?.id || user?._id]); // ✅ faqat ID o'zgarganda qayta ishlaydi
+  }, [userId]); // ✅ stable string
 
   return (
-    <SocketContext.Provider value={{ socket, onlineUsers, isConnected }}>
+    <SocketContext.Provider
+      value={{ socket, onlineUsers, isConnected, totalUnread, setTotalUnread }}
+    >
       {children}
     </SocketContext.Provider>
   );

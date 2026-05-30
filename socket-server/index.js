@@ -27,7 +27,7 @@ mongoose
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB error:", err));
 
-// ── Models ──────────────────────────────────────────────────────────────────
+// ── Models ───────────────────────────────────────────────────────────────────
 
 const UserSchema = new mongoose.Schema({
   username: String,
@@ -56,16 +56,15 @@ const MessageSchema = new mongoose.Schema(
 const Message =
   mongoose.models.Message || mongoose.model("Message", MessageSchema);
 
-// ── Online users map ─────────────────────────────────────────────────────────
-// socketId => { userId, username, avatar }
+// ── Online users map ──────────────────────────────────────────────────────────
 const onlineUsers = new Map();
 
-// ── Health check ─────────────────────────────────────────────────────────────
+// ── Health check ──────────────────────────────────────────────────────────────
 app.get("/health", (req, res) => {
   res.json({ status: "ok", onlineCount: onlineUsers.size });
 });
 
-// ── Socket logic ─────────────────────────────────────────────────────────────
+// ── Socket logic ──────────────────────────────────────────────────────────────
 io.on("connection", (socket) => {
   console.log(`🔌 Connected: ${socket.id}`);
 
@@ -83,12 +82,11 @@ io.on("connection", (socket) => {
       socket.username = username;
 
       socket.join("global");
-      socket.join(`user:${userId}`); // ✅ DM uchun personal room
+      socket.join(`user:${userId}`);
 
       io.emit("users:online-list", Array.from(onlineUsers.values()));
       socket.emit("user:authenticated", { success: true });
 
-      // Global history
       const messages = await Message.find({ room: "global", receiver: null })
         .sort({ createdAt: -1 })
         .limit(50)
@@ -126,7 +124,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ✅ 3. DIRECT MESSAGE
+  // 3. DIRECT MESSAGE
   socket.on("dm:send", async ({ receiverId, content }) => {
     try {
       if (!socket.userId || !content?.trim() || content.length > 1000) return;
@@ -144,10 +142,7 @@ io.on("connection", (socket) => {
         .populate("receiver", "username avatar")
         .lean();
 
-      // Sender ga ham yuborish (o'z ekranida ko'rsin)
       socket.emit("dm:received", populated);
-
-      // Receiver ga yuborish — agar online bo'lsa
       io.to(`user:${receiverId}`).emit("dm:received", populated);
 
       console.log(`💬 DM: ${socket.username} → ${receiverId}`);
@@ -156,7 +151,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ✅ 4. DM HISTORY
+  // 4. DM HISTORY
   socket.on("dm:history", async ({ withUserId }) => {
     try {
       if (!socket.userId) return;
@@ -179,7 +174,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ✅ 5. DM TYPING
+  // 5. DM TYPING
   socket.on("dm:typing", ({ receiverId }) => {
     io.to(`user:${receiverId}`).emit("dm:user-typing", {
       userId: socket.userId,
@@ -249,6 +244,7 @@ io.on("connection", (socket) => {
           { userId: socket.userId, username: responderData?.username },
         ],
       });
+      console.log(`🎮 Game started: ${gameId} in room ${gameRoom}`);
     } else {
       io.to(inviterEntry[0]).emit("game:invite-declined", {
         by: responderData?.username,
@@ -257,8 +253,44 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 8. DISCONNECT
+  // ── 8. TTT (Tic Tac Toe) MULTIPLAYER ─────────────────────────────────────
+
+  // O'yinchi game room ga qo'shiladi
+  socket.on("ttt:join", ({ gameRoom }) => {
+    socket.join(gameRoom);
+
+    // Roomda 2 ta odam bo'lsa — ikkalasiga ham ready signal yuborish
+    const room = io.sockets.adapter.rooms.get(gameRoom);
+    if (room && room.size >= 2) {
+      io.to(gameRoom).emit("ttt:ready");
+      console.log(`✅ TTT room ready: ${gameRoom} (${room.size} players)`);
+    }
+
+    console.log(`🎮 ${socket.username} joined TTT room: ${gameRoom}`);
+  });
+
+  // Qadamni boshqa o'yinchiga yuborish
+  socket.on("ttt:move", ({ gameRoom, index, symbol, board }) => {
+    // Faqat boshqa o'yinchiga yuborish (socket.to = o'zidan tashqari)
+    socket.to(gameRoom).emit("ttt:move", { index, symbol, board });
+    console.log(`♟️ TTT move: ${symbol} at ${index} in ${gameRoom}`);
+  });
+
+  // Reset — ikkalasiga ham yuborish
+  socket.on("ttt:reset", ({ gameRoom }) => {
+    socket.to(gameRoom).emit("ttt:reset");
+  });
+
+  // ── 9. DISCONNECT ─────────────────────────────────────────────────────────
   socket.on("disconnect", async () => {
+    // O'yinchi game room dan chiqsa — raqibga xabar berish
+    socket.rooms.forEach((room) => {
+      if (room.startsWith("game:")) {
+        socket.to(room).emit("ttt:opponent-left");
+        console.log(`👋 ${socket.username} left game room: ${room}`);
+      }
+    });
+
     const userData = onlineUsers.get(socket.id);
     if (userData) {
       await User.findByIdAndUpdate(userData.userId, {
